@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leitor de Código de Barras para ISBN</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+</head>
+<body>
+    <h1>Leitor de Código de Barras para ISBN</h1>
+    <button id="startButton">Iniciar Leitura</button>
+    <div id="scanner" style="width: 400px; height: 300px; border: 1px solid black;"></div>
+    <div id="bookInfo"></div>
+
+    <script>
+        document.getElementById('startButton').addEventListener('click', () => {
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#scanner')
+                },
+                decoder: {
+                    readers: ["ean_reader"] // EAN é o padrão para ISBN-13
+                }
+            }, function (err) {
+                if (err) {
+                    console.log(err);
+                    return;
+                }
+                console.log("Initialization finished. Ready to start");
+                Quagga.start();
+            });
+
+            Quagga.onDetected(data => {
+                const isbn = data.codeResult.code;
+                Quagga.stop();
+                searchBook(isbn);
+            });
+        });
+
+        async function searchBook(isbn) {
+            const apiKey = 'SUA_CHAVE_DE_API_AQUI';  // Coloque sua chave de API aqui
+            const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=${apiKey}`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                displayBookInfo(data);
+            } catch (error) {
+                console.error('Erro ao buscar dados do livro:', error);
+            }
+        }
+
+        function displayBookInfo(data) {
+            const bookInfoDiv = document.getElementById('bookInfo');
+            if (data.totalItems === 0) {
+                bookInfoDiv.innerHTML = '<p>Nenhum livro encontrado para o ISBN informado.</p>';
+                return;
+            }
+
+            const book = data.items[0].volumeInfo;
+            bookInfoDiv.innerHTML = `
+                <h2>${book.title}</h2>
+                <p><strong>Autores:</strong> ${book.authors.join(', ')}</p>
+                <p><strong>Publicado em:</strong> ${book.publishedDate}</p>
+                <p><strong>Descrição:</strong> ${book.description}</p>
+            `;
+        }
+    </script>
+</body>
+</html>
